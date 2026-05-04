@@ -16,161 +16,253 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="24">
+    <Grid>
 
-        <!-- Title -->
-        <TextBlock Grid.Row="0"
-                   Text="🎨 Media Generator"
-                   FontSize="28"
-                   FontWeight="Bold"
-                   Foreground="#CDD6F4"
-                   Margin="0,0,0,20"/>
+        <!-- ══════════════════════════════════════════════════════════════════
+             SETUP PANEL – shown when no API key is configured
+             ══════════════════════════════════════════════════════════════════ -->
+        <Border IsVisible="{Binding !IsApiKeyConfigured}"
+                Background="#1E1E2E"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
 
-        <!-- Row 1: Prompt TextBox + Media-Type ComboBox + Buttons -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,10">
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="20"
+                        MaxWidth="480"
+                        Margin="32">
 
-            <!-- Prompt TextBox -->
-            <TextBox Grid.Column="0"
-                     Text="{Binding PromptText}"
-                     PlaceholderText="Beschreibe dein Bild oder Video..."
-                     AcceptsReturn="True"
-                     TextWrapping="Wrap"
-                     MinHeight="90"
-                     MaxHeight="150"
-                     VerticalAlignment="Stretch"
-                     Padding="12,10"
-                     FontSize="14"
-                     Background="#313244"
-                     Foreground="#CDD6F4"
-                     BorderBrush="#585B70"
-                     BorderThickness="1"
-                     CornerRadius="8"
-                     Margin="0,0,12,0"/>
+                <!-- Icon + Title -->
+                <TextBlock Text="🔑 API-Key einrichten"
+                           FontSize="26"
+                           FontWeight="Bold"
+                           Foreground="#CDD6F4"
+                           HorizontalAlignment="Center"/>
 
-            <!-- Media Type ComboBox -->
-            <ComboBox Grid.Column="1"
-                      ItemsSource="{Binding MediaTypes}"
-                      SelectedItem="{Binding SelectedMediaType}"
-                      Width="120"
-                      Height="42"
-                      VerticalAlignment="Top"
-                      Background="#313244"
-                      Foreground="#CDD6F4"
-                      BorderBrush="#585B70"
-                      BorderThickness="1"
-                      CornerRadius="8"
-                      Margin="0,0,12,0"/>
+                <!-- Description -->
+                <TextBlock TextWrapping="Wrap"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center"
+                           Foreground="#A6ADC8"
+                           FontSize="14">
+                    Um Bilder und Videos zu generieren, benötigst du einen
+                    OpenRouter API-Key. Dieser wird sicher in deinem lokalen
+                    AppData-Verzeichnis gespeichert und nie übertragen.
+                </TextBlock>
 
-            <!-- Generate Button -->
-            <Button Grid.Column="2"
-                    Content="✨ Generieren"
-                    Command="{Binding GenerateCommand}"
-                    IsEnabled="{Binding !IsLoading}"
-                    Width="140"
-                    Height="42"
-                    VerticalAlignment="Top"
-                    FontSize="14"
-                    FontWeight="SemiBold"
-                    Background="#89B4FA"
-                    Foreground="#1E1E2E"
-                    CornerRadius="8"
-                    Cursor="Hand"
-                    Margin="0,0,12,0"/>
+                <!-- Link hint -->
+                <TextBlock Text="👉 openrouter.ai/keys"
+                           Foreground="#89B4FA"
+                           FontSize="13"
+                           HorizontalAlignment="Center"/>
 
-            <!-- Save Button -->
-            <Button x:Name="SaveButton"
-                    Grid.Column="3"
-                    Content="💾 Bild speichern"
-                    IsEnabled="{Binding CanSaveImage}"
-                    Width="150"
-                    Height="42"
-                    VerticalAlignment="Top"
-                    FontSize="14"
-                    FontWeight="SemiBold"
-                    Background="#A6E3A1"
-                    Foreground="#1E1E2E"
-                    CornerRadius="8"
-                    Cursor="Hand"
-                    Click="SaveButton_Click"/>
-        </Grid>
+                <!-- Key input -->
+                <TextBox Text="{Binding ApiKeyInput}"
+                         PlaceholderText="sk-or-v1-..."
+                         PasswordChar="•"
+                         FontSize="14"
+                         Padding="12,10"
+                         Background="#313244"
+                         Foreground="#CDD6F4"
+                         BorderBrush="#585B70"
+                         BorderThickness="1"
+                         CornerRadius="8"/>
 
-        <!-- Row 2: Model Selection ComboBox -->
-        <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,0,0,16">
-            <TextBlock Grid.Column="0"
-                       Text="Modell:"
-                       Foreground="#A6ADC8"
-                       FontSize="13"
-                       VerticalAlignment="Center"
-                       Margin="0,0,10,0"/>
-            <ComboBox Grid.Column="1"
-                      ItemsSource="{Binding AvailableModels}"
-                      SelectedItem="{Binding SelectedModel}"
-                      HorizontalAlignment="Stretch"
-                      Height="38"
-                      Background="#313244"
-                      Foreground="#CDD6F4"
-                      BorderBrush="#585B70"
-                      BorderThickness="1"
-                      CornerRadius="8"/>
-        </Grid>
+                <!-- Save button -->
+                <Button Content="✅ Key speichern"
+                        Command="{Binding SaveApiKeyCommand}"
+                        HorizontalAlignment="Stretch"
+                        Height="44"
+                        FontSize="15"
+                        FontWeight="SemiBold"
+                        Background="#89B4FA"
+                        Foreground="#1E1E2E"
+                        CornerRadius="8"
+                        Cursor="Hand"/>
 
-        <!-- Image / Result Area -->
-        <Border Grid.Row="3"
-                Background="#181825"
-                BorderBrush="#585B70"
-                BorderThickness="1"
-                CornerRadius="12"
-                Margin="0,0,0,16"
-                ClipToBounds="True">
+                <!-- Setup status / error -->
+                <TextBlock Text="{Binding SetupStatusMessage}"
+                           Foreground="#F38BA8"
+                           FontSize="13"
+                           TextWrapping="Wrap"
+                           HorizontalAlignment="Center"
+                           IsVisible="{Binding SetupStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
-            <Grid>
-                <!-- Placeholder text when no image -->
-                <TextBlock Text="Das generierte Bild erscheint hier..."
+            </StackPanel>
+        </Border>
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             MAIN UI – shown once the API key is configured
+             ══════════════════════════════════════════════════════════════════ -->
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto"
+              Margin="24"
+              IsVisible="{Binding IsApiKeyConfigured}">
+
+            <!-- Title row with Reset-Key button -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
+                <TextBlock Grid.Column="0"
+                           Text="🎨 Media Generator"
+                           FontSize="28"
+                           FontWeight="Bold"
+                           Foreground="#CDD6F4"
+                           VerticalAlignment="Center"/>
+
+                <Button Grid.Column="1"
+                        Content="🔑 Key ändern"
+                        Command="{Binding ResetApiKeyCommand}"
+                        Height="34"
+                        Padding="12,0"
+                        FontSize="12"
+                        Background="#45475A"
+                        Foreground="#CDD6F4"
+                        CornerRadius="6"
+                        Cursor="Hand"
+                        VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Row 1: Prompt TextBox + Media-Type ComboBox + Buttons -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,10">
+
+                <!-- Prompt TextBox -->
+                <TextBox Grid.Column="0"
+                         Text="{Binding PromptText}"
+                         PlaceholderText="Beschreibe dein Bild oder Video..."
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         MinHeight="90"
+                         MaxHeight="150"
+                         VerticalAlignment="Stretch"
+                         Padding="12,10"
+                         FontSize="14"
+                         Background="#313244"
+                         Foreground="#CDD6F4"
+                         BorderBrush="#585B70"
+                         BorderThickness="1"
+                         CornerRadius="8"
+                         Margin="0,0,12,0"/>
+
+                <!-- Media Type ComboBox -->
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding MediaTypes}"
+                          SelectedItem="{Binding SelectedMediaType}"
+                          Width="120"
+                          Height="42"
+                          VerticalAlignment="Top"
+                          Background="#313244"
+                          Foreground="#CDD6F4"
+                          BorderBrush="#585B70"
+                          BorderThickness="1"
+                          CornerRadius="8"
+                          Margin="0,0,12,0"/>
+
+                <!-- Generate Button -->
+                <Button Grid.Column="2"
+                        Content="✨ Generieren"
+                        Command="{Binding GenerateCommand}"
+                        IsEnabled="{Binding !IsLoading}"
+                        Width="140"
+                        Height="42"
+                        VerticalAlignment="Top"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Background="#89B4FA"
+                        Foreground="#1E1E2E"
+                        CornerRadius="8"
+                        Cursor="Hand"
+                        Margin="0,0,12,0"/>
+
+                <!-- Save Button -->
+                <Button x:Name="SaveButton"
+                        Grid.Column="3"
+                        Content="💾 Bild speichern"
+                        IsEnabled="{Binding CanSaveImage}"
+                        Width="150"
+                        Height="42"
+                        VerticalAlignment="Top"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Background="#A6E3A1"
+                        Foreground="#1E1E2E"
+                        CornerRadius="8"
+                        Cursor="Hand"
+                        Click="SaveButton_Click"/>
+            </Grid>
+
+            <!-- Row 2: Model Selection ComboBox -->
+            <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,0,0,16">
+                <TextBlock Grid.Column="0"
+                           Text="Modell:"
+                           Foreground="#A6ADC8"
+                           FontSize="13"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"/>
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding AvailableModels}"
+                          SelectedItem="{Binding SelectedModel}"
+                          HorizontalAlignment="Stretch"
+                          Height="38"
+                          Background="#313244"
+                          Foreground="#CDD6F4"
+                          BorderBrush="#585B70"
+                          BorderThickness="1"
+                          CornerRadius="8"/>
+            </Grid>
+
+            <!-- Image / Result Area -->
+            <Border Grid.Row="3"
+                    Background="#181825"
+                    BorderBrush="#585B70"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Margin="0,0,0,16"
+                    ClipToBounds="True">
+
+                <Grid>
+                    <TextBlock Text="Das generierte Bild erscheint hier..."
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="#585B70"
+                               FontSize="16"
+                               IsVisible="{Binding GeneratedImage, Converter={x:Static ObjectConverters.IsNull}}"/>
+
+                    <Image Source="{Binding GeneratedImage}"
+                           Stretch="Uniform"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"
-                           Foreground="#585B70"
-                           FontSize="16"
-                           IsVisible="{Binding GeneratedImage, Converter={x:Static ObjectConverters.IsNull}}"/>
+                           IsVisible="{Binding GeneratedImage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
 
-                <!-- Generated Image -->
-                <Image Source="{Binding GeneratedImage}"
-                       Stretch="Uniform"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       IsVisible="{Binding GeneratedImage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    <Border Background="#AA181825"
+                            IsVisible="{Binding IsLoading}"
+                            CornerRadius="12">
+                        <StackPanel HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="16">
+                            <TextBlock Text="⏳ Generiere..."
+                                       Foreground="#89B4FA"
+                                       FontSize="20"
+                                       FontWeight="SemiBold"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Text="Bitte warten, das kann einige Sekunden dauern."
+                                       Foreground="#A6ADC8"
+                                       FontSize="13"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
 
-                <!-- Loading Overlay -->
-                <Border Background="#AA181825"
-                        IsVisible="{Binding IsLoading}"
-                        CornerRadius="12">
-                    <StackPanel HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Spacing="16">
-                        <TextBlock Text="⏳ Generiere..."
-                                   Foreground="#89B4FA"
-                                   FontSize="20"
-                                   FontWeight="SemiBold"
-                                   HorizontalAlignment="Center"/>
-                        <TextBlock Text="Bitte warten, das kann einige Sekunden dauern."
-                                   Foreground="#A6ADC8"
-                                   FontSize="13"
-                                   HorizontalAlignment="Center"/>
-                    </StackPanel>
-                </Border>
-            </Grid>
-        </Border>
+            <!-- Status Bar -->
+            <Border Grid.Row="4"
+                    Background="#313244"
+                    CornerRadius="8"
+                    Padding="12,8"
+                    IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{Binding StatusMessage}"
+                           Foreground="{Binding StatusColor}"
+                           FontSize="13"
+                           TextWrapping="Wrap"/>
+            </Border>
 
-        <!-- Status Bar -->
-        <Border Grid.Row="4"
-                Background="#313244"
-                CornerRadius="8"
-                Padding="12,8"
-                IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock Text="{Binding StatusMessage}"
-                       Foreground="{Binding StatusColor}"
-                       FontSize="13"
-                       TextWrapping="Wrap"/>
-        </Border>
-
+        </Grid>
     </Grid>
 </Window>

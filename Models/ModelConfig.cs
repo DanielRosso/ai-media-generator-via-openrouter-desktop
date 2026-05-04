@@ -11,8 +11,8 @@ public static class ModelConfig
     /// </summary>
     public static readonly string[] ImageModels =
     [
-        "black-forest-labs/flux-schnell",
-        "black-forest-labs/flux-1.1-pro-ultra",
+        "black-forest-labs/flux.2-pro",
+        "bytedance-seed/seedream-4.5",
     ];
 
     /// <summary>
@@ -20,7 +20,7 @@ public static class ModelConfig
     /// </summary>
     public static readonly string[] VideoModels =
     [
-        "luma/ray-2-720p",
-        "kwaivgi/kling-v3.0-pro",
+        "bytedance/seedance-2.0",
+        "kwaivgi/kling-v3.0-std",
     ];
 }

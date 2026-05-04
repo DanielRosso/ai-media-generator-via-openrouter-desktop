@@ -26,6 +26,7 @@ public partial class MainWindowViewModel : ViewModelBase
     };
 
     private const string ApiUrl = "https://openrouter.ai/api/v1/chat/completions";
+    private const string VideoApiUrl = "https://openrouter.ai/api/v1/videos";
 
     // Matches http(s) URLs that look like video links (mp4, webm, or known CDN patterns)
     private static readonly Regex VideoUrlRegex = new(
@@ -219,136 +220,16 @@ public partial class MainWindowViewModel : ViewModelBase
         var modeLabel = IsVideoMode ? "Video" : "Bild";
         SetStatus($"🔄 Verbinde mit OpenRouter API ({modeLabel}-Modus)...", "#89B4FA");
 
-        // Capture the exact payload we send – used in the debug log on failure
-        string requestPayload = string.Empty;
-
         try
         {
-            // Same endpoint and payload for both image and video models
-            var requestBody = new
-            {
-                model = SelectedModel,
-                messages = new[]
-                {
-                    new { role = "user", content = PromptText }
-                }
-            };
-
-            requestPayload = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions { WriteIndented = true });
-
-            using var request = new HttpRequestMessage(HttpMethod.Post, ApiUrl);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
-            request.Headers.Add("HTTP-Referer", "https://github.com/DanielRosso/ai-media-generator-via-openrouter-desktop");
-            request.Headers.Add("X-Title", "Media Generator");
-            request.Content = new StringContent(requestPayload, Encoding.UTF8, "application/json");
-
             if (IsVideoMode)
-                SetStatus($"⏳ Video wird generiert mit '{SelectedModel}' – das kann mehrere Minuten dauern...", "#89B4FA");
+            {
+                await GenerateVideoAsync(SelectedModel!, PromptText, _apiKey!);
+            }
             else
-                SetStatus($"⏳ Sende Anfrage an Modell '{SelectedModel}'...", "#89B4FA");
-
-            using var response = await _httpClient.SendAsync(request);
-            var responseBody = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
             {
-                var statusCode = (int)response.StatusCode;
-                SetStatus($"❌ API-Fehler {statusCode}: {response.ReasonPhrase}", "#F38BA8");
-                DebugLog =
-                    $"═══ HTTP-FEHLERPROTOKOLL ═══\n" +
-                    $"Zeitstempel : {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
-                    $"Endpunkt    : POST {ApiUrl}\n" +
-                    $"Modell      : {SelectedModel}\n" +
-                    $"Statuscode  : {statusCode} {response.ReasonPhrase}\n\n" +
-                    $"── Gesendeter Payload ──────────────────────────────────\n" +
-                    $"{requestPayload}\n\n" +
-                    $"── Antwort von OpenRouter ──────────────────────────────\n" +
-                    $"{responseBody}";
-                return;
+                await GenerateImageAsync(SelectedModel!, PromptText, _apiKey!);
             }
-
-            using var doc = JsonDocument.Parse(responseBody);
-            var root = doc.RootElement;
-
-            // Extract the message content
-            string? contentStr = null;
-            string? base64Image = null;
-
-            if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
-            {
-                var firstChoice = choices[0];
-                if (firstChoice.TryGetProperty("message", out var message))
-                {
-                    // Image path: choices[0].message.images[0].image_url.url
-                    if (!IsVideoMode &&
-                        message.TryGetProperty("images", out var images) &&
-                        images.GetArrayLength() > 0)
-                    {
-                        var firstImage = images[0];
-                        if (firstImage.TryGetProperty("image_url", out var imageUrl) &&
-                            imageUrl.TryGetProperty("url", out var urlProp))
-                        {
-                            base64Image = urlProp.GetString();
-                        }
-                    }
-
-                    // Content field (used by video models and as image fallback)
-                    if (message.TryGetProperty("content", out var contentProp))
-                        contentStr = contentProp.GetString() ?? string.Empty;
-
-                    // Image fallback: data URI in content
-                    if (base64Image == null && !IsVideoMode &&
-                        contentStr?.StartsWith("data:image") == true)
-                    {
-                        base64Image = contentStr;
-                    }
-                }
-            }
-
-            // ── VIDEO path ────────────────────────────────────────────────────
-            if (IsVideoMode)
-            {
-                var videoUrl = ExtractVideoUrl(contentStr ?? string.Empty, responseBody);
-
-                if (string.IsNullOrEmpty(videoUrl))
-                {
-                    SetStatus(
-                        $"⚠️ Keine Video-URL in der Antwort gefunden.\n" +
-                        $"Antwort: {responseBody[..Math.Min(600, responseBody.Length)]}",
-                        "#FAB387");
-                    return;
-                }
-
-                GeneratedVideoUrl = videoUrl;
-                SetStatus($"✅ Video fertig! Klicke '▶ Video öffnen' um es im Browser anzusehen.", "#A6E3A1");
-                return;
-            }
-
-            // ── IMAGE path ────────────────────────────────────────────────────
-            if (string.IsNullOrEmpty(base64Image))
-            {
-                SetStatus(
-                    $"⚠️ Kein Bild in der Antwort gefunden.\n" +
-                    $"Antwort: {responseBody[..Math.Min(500, responseBody.Length)]}",
-                    "#FAB387");
-                return;
-            }
-
-            var base64Data = base64Image.Contains(',')
-                ? base64Image[(base64Image.IndexOf(',') + 1)..]
-                : base64Image;
-
-            var imageBytes = Convert.FromBase64String(base64Data);
-            using var stream = new MemoryStream(imageBytes);
-
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                GeneratedImage = new Bitmap(stream);
-            });
-
-            _currentBase64Image = base64Data;
-            CanSaveImage = true;
-            SetStatus("✅ Bild erfolgreich generiert! Klicke '💾 Bild speichern' zum Speichern.", "#A6E3A1");
         }
         catch (TaskCanceledException)
         {
@@ -368,26 +249,240 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    // ── Video URL extraction ──────────────────────────────────────────────────
+    // ── Video generation: POST /videos → poll until completed ─────────────────
 
-    private static string? ExtractVideoUrl(string content, string fullResponseBody)
+    private async Task GenerateVideoAsync(string model, string prompt, string apiKey)
     {
-        // 1. Try to find a video-specific URL in the content field
-        var match = VideoUrlRegex.Match(content);
-        if (match.Success) return match.Value;
+        // ── Step 1: Start the job ─────────────────────────────────────────────
+        var startBody = new { model, prompt };
+        var startPayload = JsonSerializer.Serialize(startBody, new JsonSerializerOptions { WriteIndented = true });
 
-        // 2. Try any URL in the content field
-        match = AnyUrlRegex.Match(content);
-        if (match.Success) return match.Value;
+        using var startRequest = new HttpRequestMessage(HttpMethod.Post, VideoApiUrl);
+        startRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        startRequest.Headers.Add("HTTP-Referer", "https://github.com/DanielRosso/ai-media-generator-via-openrouter-desktop");
+        startRequest.Headers.Add("X-Title", "Media Generator");
+        startRequest.Content = new StringContent(startPayload, Encoding.UTF8, "application/json");
 
-        // 3. Search the entire raw response body as fallback
-        match = VideoUrlRegex.Match(fullResponseBody);
-        if (match.Success) return match.Value;
+        SetStatus($"⏳ Starte Video-Job mit Modell '{model}'...", "#89B4FA");
 
-        match = AnyUrlRegex.Match(fullResponseBody);
-        if (match.Success) return match.Value;
+        using var startResponse = await _httpClient.SendAsync(startRequest);
+        var startBody2 = await startResponse.Content.ReadAsStringAsync();
 
-        return null;
+        if (!startResponse.IsSuccessStatusCode)
+        {
+            var code = (int)startResponse.StatusCode;
+            SetStatus($"❌ API-Fehler {code}: {startResponse.ReasonPhrase}", "#F38BA8");
+            DebugLog =
+                $"═══ HTTP-FEHLERPROTOKOLL (Video-Start) ═══\n" +
+                $"Zeitstempel : {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+                $"Endpunkt    : POST {VideoApiUrl}\n" +
+                $"Modell      : {model}\n" +
+                $"Statuscode  : {code} {startResponse.ReasonPhrase}\n\n" +
+                $"── Gesendeter Payload ──────────────────────────────────\n" +
+                $"{startPayload}\n\n" +
+                $"── Antwort von OpenRouter ──────────────────────────────\n" +
+                $"{startBody2}";
+            return;
+        }
+
+        // Extract polling_url from the start response
+        using var startDoc = JsonDocument.Parse(startBody2);
+        var pollingUrl = startDoc.RootElement
+            .TryGetProperty("polling_url", out var pollingProp)
+            ? pollingProp.GetString()
+            : null;
+
+        if (string.IsNullOrWhiteSpace(pollingUrl))
+        {
+            SetStatus("⚠️ Keine polling_url in der Start-Antwort gefunden.", "#FAB387");
+            DebugLog =
+                $"═══ FEHLENDE polling_url ═══\n" +
+                $"Zeitstempel : {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+                $"Endpunkt    : POST {VideoApiUrl}\n\n" +
+                $"── Start-Antwort ───────────────────────────────────────\n" +
+                $"{startBody2}";
+            return;
+        }
+
+        // ── Step 2: Poll until completed or failed ────────────────────────────
+        var pollCount = 0;
+        while (true)
+        {
+            pollCount++;
+            SetStatus($"🔄 Warte auf Video... (Abfrage #{pollCount}, alle 5 Sek.)", "#89B4FA");
+
+            await Task.Delay(5000);
+
+            using var pollRequest = new HttpRequestMessage(HttpMethod.Get, pollingUrl);
+            pollRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            pollRequest.Headers.Add("HTTP-Referer", "https://github.com/DanielRosso/ai-media-generator-via-openrouter-desktop");
+            pollRequest.Headers.Add("X-Title", "Media Generator");
+
+            using var pollResponse = await _httpClient.SendAsync(pollRequest);
+            var pollBody = await pollResponse.Content.ReadAsStringAsync();
+
+            if (!pollResponse.IsSuccessStatusCode)
+            {
+                var code = (int)pollResponse.StatusCode;
+                SetStatus($"❌ Polling-Fehler {code}: {pollResponse.ReasonPhrase}", "#F38BA8");
+                DebugLog =
+                    $"═══ HTTP-FEHLERPROTOKOLL (Polling) ═══\n" +
+                    $"Zeitstempel : {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+                    $"Endpunkt    : GET {pollingUrl}\n" +
+                    $"Statuscode  : {code} {pollResponse.ReasonPhrase}\n\n" +
+                    $"── Antwort ─────────────────────────────────────────────\n" +
+                    $"{pollBody}";
+                return;
+            }
+
+            using var pollDoc = JsonDocument.Parse(pollBody);
+            var pollRoot = pollDoc.RootElement;
+
+            var status = pollRoot.TryGetProperty("status", out var statusProp)
+                ? statusProp.GetString() ?? string.Empty
+                : string.Empty;
+
+            if (status == "completed")
+            {
+                // Extract first URL from unsigned_urls array
+                string? videoUrl = null;
+                if (pollRoot.TryGetProperty("unsigned_urls", out var urlsArr) &&
+                    urlsArr.ValueKind == JsonValueKind.Array &&
+                    urlsArr.GetArrayLength() > 0)
+                {
+                    videoUrl = urlsArr[0].GetString();
+                }
+
+                if (string.IsNullOrWhiteSpace(videoUrl))
+                {
+                    SetStatus("⚠️ Video fertig, aber keine URL in 'unsigned_urls' gefunden.", "#FAB387");
+                    DebugLog =
+                        $"═══ FEHLENDE VIDEO-URL ═══\n" +
+                        $"Status war 'completed', aber unsigned_urls ist leer.\n\n" +
+                        $"── Polling-Antwort ─────────────────────────────────────\n" +
+                        $"{pollBody}";
+                    return;
+                }
+
+                GeneratedVideoUrl = videoUrl;
+                SetStatus("✅ Video fertig! Klicke '▶ Video öffnen' um es im Browser anzusehen.", "#A6E3A1");
+                return;
+            }
+
+            if (status == "failed")
+            {
+                var errorMsg = pollRoot.TryGetProperty("error", out var errProp)
+                    ? errProp.GetString() ?? "Unbekannter Fehler"
+                    : "Unbekannter Fehler";
+
+                SetStatus($"❌ Video-Generierung fehlgeschlagen: {errorMsg}", "#F38BA8");
+                DebugLog =
+                    $"═══ VIDEO-JOB FEHLGESCHLAGEN ═══\n" +
+                    $"Zeitstempel : {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+                    $"Modell      : {model}\n" +
+                    $"Fehler      : {errorMsg}\n\n" +
+                    $"── Polling-Antwort ─────────────────────────────────────\n" +
+                    $"{pollBody}";
+                return;
+            }
+
+            // status is "pending", "processing", etc. – keep polling
+        }
+    }
+
+    // ── Image generation (chat completions endpoint) ──────────────────────────
+
+    private async Task GenerateImageAsync(string model, string prompt, string apiKey)
+    {
+        var requestBody = new
+        {
+            model,
+            messages = new[] { new { role = "user", content = prompt } }
+        };
+
+        var requestPayload = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions { WriteIndented = true });
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, ApiUrl);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        request.Headers.Add("HTTP-Referer", "https://github.com/DanielRosso/ai-media-generator-via-openrouter-desktop");
+        request.Headers.Add("X-Title", "Media Generator");
+        request.Content = new StringContent(requestPayload, Encoding.UTF8, "application/json");
+
+        SetStatus($"⏳ Sende Anfrage an Modell '{model}'...", "#89B4FA");
+
+        using var response = await _httpClient.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var statusCode = (int)response.StatusCode;
+            SetStatus($"❌ API-Fehler {statusCode}: {response.ReasonPhrase}", "#F38BA8");
+            DebugLog =
+                $"═══ HTTP-FEHLERPROTOKOLL ═══\n" +
+                $"Zeitstempel : {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+                $"Endpunkt    : POST {ApiUrl}\n" +
+                $"Modell      : {model}\n" +
+                $"Statuscode  : {statusCode} {response.ReasonPhrase}\n\n" +
+                $"── Gesendeter Payload ──────────────────────────────────\n" +
+                $"{requestPayload}\n\n" +
+                $"── Antwort von OpenRouter ──────────────────────────────\n" +
+                $"{responseBody}";
+            return;
+        }
+
+        using var doc = JsonDocument.Parse(responseBody);
+        var root = doc.RootElement;
+
+        string? base64Image = null;
+        string? contentStr = null;
+
+        if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
+        {
+            var firstChoice = choices[0];
+            if (firstChoice.TryGetProperty("message", out var message))
+            {
+                if (message.TryGetProperty("images", out var images) && images.GetArrayLength() > 0)
+                {
+                    var firstImage = images[0];
+                    if (firstImage.TryGetProperty("image_url", out var imageUrl) &&
+                        imageUrl.TryGetProperty("url", out var urlProp))
+                    {
+                        base64Image = urlProp.GetString();
+                    }
+                }
+
+                if (message.TryGetProperty("content", out var contentProp))
+                    contentStr = contentProp.GetString() ?? string.Empty;
+
+                if (base64Image == null && contentStr?.StartsWith("data:image") == true)
+                    base64Image = contentStr;
+            }
+        }
+
+        if (string.IsNullOrEmpty(base64Image))
+        {
+            SetStatus(
+                $"⚠️ Kein Bild in der Antwort gefunden.\n" +
+                $"Antwort: {responseBody[..Math.Min(500, responseBody.Length)]}",
+                "#FAB387");
+            return;
+        }
+
+        var base64Data = base64Image.Contains(',')
+            ? base64Image[(base64Image.IndexOf(',') + 1)..]
+            : base64Image;
+
+        var imageBytes = Convert.FromBase64String(base64Data);
+        using var stream = new MemoryStream(imageBytes);
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            GeneratedImage = new Bitmap(stream);
+        });
+
+        _currentBase64Image = base64Data;
+        CanSaveImage = true;
+        SetStatus("✅ Bild erfolgreich generiert! Klicke '💾 Bild speichern' zum Speichern.", "#A6E3A1");
     }
 
     // ── Open video in browser ─────────────────────────────────────────────────

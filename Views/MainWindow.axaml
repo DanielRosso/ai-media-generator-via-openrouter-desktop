@@ -260,8 +260,7 @@
                                    MaxWidth="600"
                                    TextAlignment="Center"/>
 
-                        <Button Content="▶ Video im Browser öffnen"
-                                Command="{Binding OpenVideoInBrowserCommand}"
+                        <Button Content="⬇ Video herunterladen und speichern"
                                 HorizontalAlignment="Center"
                                 Height="46"
                                 Padding="24,0"
@@ -270,7 +269,8 @@
                                 Background="#CBA6F7"
                                 Foreground="#1E1E2E"
                                 CornerRadius="8"
-                                Cursor="Hand"/>
+                                Cursor="Hand"
+                                Click="DownloadVideoButton_Click"/>
                     </StackPanel>
 
                     <!-- Loading Overlay -->

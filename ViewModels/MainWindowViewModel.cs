@@ -485,26 +485,43 @@ public partial class MainWindowViewModel : ViewModelBase
         SetStatus("✅ Bild erfolgreich generiert! Klicke '💾 Bild speichern' zum Speichern.", "#A6E3A1");
     }
 
-    // ── Open video in browser ─────────────────────────────────────────────────
+    // ── Authenticated video download (called from code-behind) ────────────────
 
-    [RelayCommand]
-    private void OpenVideoInBrowser()
+    /// <summary>
+    /// Downloads the video from <see cref="GeneratedVideoUrl"/> using the stored
+    /// API key (required – the URL is not publicly accessible) and writes it to
+    /// <paramref name="destinationStream"/>.
+    /// </summary>
+    public async Task DownloadVideoToStreamAsync(Stream destinationStream)
     {
-        if (string.IsNullOrEmpty(GeneratedVideoUrl)) return;
+        if (string.IsNullOrEmpty(GeneratedVideoUrl))
+            throw new InvalidOperationException("Keine Video-URL vorhanden.");
 
-        try
+        SetStatus("⏳ Lade Video herunter...", "#89B4FA");
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, GeneratedVideoUrl);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey ?? string.Empty);
+        request.Headers.Add("HTTP-Referer", "https://github.com/DanielRosso/ai-media-generator-via-openrouter-desktop");
+        request.Headers.Add("X-Title", "Media Generator");
+
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+
+        if (!response.IsSuccessStatusCode)
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = GeneratedVideoUrl,
-                UseShellExecute = true   // lets the OS pick the default browser
-            });
+            var body = await response.Content.ReadAsStringAsync();
+            throw new HttpRequestException(
+                $"Download fehlgeschlagen: {(int)response.StatusCode} {response.ReasonPhrase}\n{body}");
         }
-        catch (Exception ex)
-        {
-            SetStatus($"❌ Browser konnte nicht geöffnet werden: {ex.Message}", "#F38BA8");
-        }
+
+        await using var videoStream = await response.Content.ReadAsStreamAsync();
+        await videoStream.CopyToAsync(destinationStream);
     }
+
+    public void NotifyVideoSaved(string filePath)
+        => SetStatus($"✅ Video erfolgreich gespeichert: {filePath}", "#A6E3A1");
+
+    public void NotifyVideoDownloadFailed(string reason)
+        => SetStatus($"❌ Download fehlgeschlagen: {reason}", "#F38BA8");
 
     // ── Save helpers (called from code-behind) ────────────────────────────────
 

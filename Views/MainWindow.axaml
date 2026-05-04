@@ -1,0 +1,141 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:vid_img_frontend_net_core.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+        x:Class="vid_img_frontend_net_core.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="Media Generator"
+        MinWidth="700"
+        MinHeight="550"
+        Background="#1E1E2E">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="24">
+
+        <!-- Title -->
+        <TextBlock Grid.Row="0"
+                   Text="🎨 Media Generator"
+                   FontSize="28"
+                   FontWeight="Bold"
+                   Foreground="#CDD6F4"
+                   Margin="0,0,0,20"/>
+
+        <!-- Controls Row -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,16">
+
+            <!-- Prompt TextBox -->
+            <TextBox Grid.Column="0"
+                     Text="{Binding PromptText}"
+                     PlaceholderText="Beschreibe dein Bild oder Video..."
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     MinHeight="90"
+                     MaxHeight="150"
+                     VerticalAlignment="Stretch"
+                     Padding="12,10"
+                     FontSize="14"
+                     Background="#313244"
+                     Foreground="#CDD6F4"
+                     BorderBrush="#585B70"
+                     BorderThickness="1"
+                     CornerRadius="8"
+                     Margin="0,0,12,0"/>
+
+            <!-- Media Type ComboBox -->
+            <ComboBox Grid.Column="1"
+                      SelectedIndex="{Binding SelectedMediaTypeIndex}"
+                      Width="120"
+                      Height="42"
+                      VerticalAlignment="Top"
+                      Background="#313244"
+                      Foreground="#CDD6F4"
+                      BorderBrush="#585B70"
+                      BorderThickness="1"
+                      CornerRadius="8"
+                      Margin="0,0,12,0">
+                <ComboBoxItem Content="Bild"/>
+                <ComboBoxItem Content="Video"/>
+            </ComboBox>
+
+            <!-- Generate Button -->
+            <Button Grid.Column="2"
+                    Content="✨ Generieren"
+                    Command="{Binding GenerateCommand}"
+                    IsEnabled="{Binding !IsLoading}"
+                    Width="140"
+                    Height="42"
+                    VerticalAlignment="Top"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    Background="#89B4FA"
+                    Foreground="#1E1E2E"
+                    CornerRadius="8"
+                    Cursor="Hand"/>
+        </Grid>
+
+        <!-- Image / Result Area -->
+        <Border Grid.Row="2"
+                Background="#181825"
+                BorderBrush="#585B70"
+                BorderThickness="1"
+                CornerRadius="12"
+                Margin="0,0,0,16"
+                ClipToBounds="True">
+
+            <Grid>
+                <!-- Placeholder text when no image -->
+                <TextBlock Text="Das generierte Bild erscheint hier..."
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Foreground="#585B70"
+                           FontSize="16"
+                           IsVisible="{Binding GeneratedImage, Converter={x:Static ObjectConverters.IsNull}}"/>
+
+                <!-- Generated Image -->
+                <Image Source="{Binding GeneratedImage}"
+                       Stretch="Uniform"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding GeneratedImage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+
+                <!-- Loading Overlay -->
+                <Border Background="#AA181825"
+                        IsVisible="{Binding IsLoading}"
+                        CornerRadius="12">
+                    <StackPanel HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="16">
+                        <TextBlock Text="⏳ Generiere..."
+                                   Foreground="#89B4FA"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="Bitte warten, das kann einige Sekunden dauern."
+                                   Foreground="#A6ADC8"
+                                   FontSize="13"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="3"
+                Background="#313244"
+                CornerRadius="8"
+                Padding="12,8"
+                IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <TextBlock Text="{Binding StatusMessage}"
+                       Foreground="{Binding StatusColor}"
+                       FontSize="13"
+                       TextWrapping="Wrap"/>
+        </Border>
+
+    </Grid>
+</Window>

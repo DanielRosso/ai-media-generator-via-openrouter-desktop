@@ -1,0 +1,40 @@
+name: Build & Publish Windows EXE
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build self-contained Windows EXE
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Publish single-file EXE (win-x64)
+        run: >
+          dotnet publish -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o ./publish_output
+
+      - name: Upload EXE as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MediaGenerator-win-x64
+          path: ./publish_output/*.exe
+          if-no-files-found: error

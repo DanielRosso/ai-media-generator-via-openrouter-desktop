@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -17,24 +19,35 @@ namespace vid_img_frontend_net_core.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
-    private static readonly HttpClient _httpClient = new();
+    // 10-minute timeout – video generation can take several minutes
+    private static readonly HttpClient _httpClient = new()
+    {
+        Timeout = TimeSpan.FromMinutes(10)
+    };
+
     private const string ApiUrl = "https://openrouter.ai/api/v1/chat/completions";
+
+    // Matches http(s) URLs that look like video links (mp4, webm, or known CDN patterns)
+    private static readonly Regex VideoUrlRegex = new(
+        @"https?://[^\s\)\]""'<>]+(?:\.mp4|\.webm|\.mov|/video/[^\s\)\]""'<>]*)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    // Fallback: any bare https URL in the content
+    private static readonly Regex AnyUrlRegex = new(
+        @"https?://[^\s\)\]""'<>]+",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     // ── API Key setup ─────────────────────────────────────────────────────────
 
-    /// <summary>True = main UI visible; False = setup panel visible.</summary>
     [ObservableProperty]
     private bool _isApiKeyConfigured = false;
 
-    /// <summary>Bound to the API key TextBox in the setup panel.</summary>
     [ObservableProperty]
     private string _apiKeyInput = string.Empty;
 
-    /// <summary>Feedback shown in the setup panel.</summary>
     [ObservableProperty]
     private string _setupStatusMessage = string.Empty;
 
-    // Cached key used for API calls (never exposed to the UI after saving)
     private string? _apiKey;
 
     // ── Media type ────────────────────────────────────────────────────────────
@@ -44,7 +57,16 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private string _selectedMediaType = "Bild";
 
-    partial void OnSelectedMediaTypeChanged(string value) => RefreshModelList();
+    partial void OnSelectedMediaTypeChanged(string value)
+    {
+        RefreshModelList();
+        // Clear previous result when switching type
+        GeneratedImage = null;
+        GeneratedVideoUrl = null;
+        CanSaveImage = false;
+        _currentBase64Image = null;
+        StatusMessage = string.Empty;
+    }
 
     // ── Model selection ───────────────────────────────────────────────────────
 
@@ -58,8 +80,19 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private string _promptText = string.Empty;
 
+    /// <summary>Set for image results; null for video results.</summary>
     [ObservableProperty]
     private Bitmap? _generatedImage;
+
+    /// <summary>Set for video results; null for image results.</summary>
+    [ObservableProperty]
+    private string? _generatedVideoUrl;
+
+    /// <summary>True when a video URL is available – shows the "open video" button.</summary>
+    public bool HasVideoResult => !string.IsNullOrEmpty(GeneratedVideoUrl);
+
+    partial void OnGeneratedVideoUrlChanged(string? value)
+        => OnPropertyChanged(nameof(HasVideoResult));
 
     [ObservableProperty]
     private bool _isLoading = false;
@@ -95,7 +128,6 @@ public partial class MainWindowViewModel : ViewModelBase
     private void SaveApiKey()
     {
         var trimmed = ApiKeyInput.Trim();
-
         if (string.IsNullOrWhiteSpace(trimmed))
         {
             SetupStatusMessage = "⚠️ Bitte gib einen gültigen API-Key ein.";
@@ -109,13 +141,13 @@ public partial class MainWindowViewModel : ViewModelBase
         IsApiKeyConfigured = true;
     }
 
-    /// <summary>Allows the user to reset the stored key from the main UI.</summary>
     [RelayCommand]
     private void ResetApiKey()
     {
         ApiKeyService.Delete();
         _apiKey = null;
         GeneratedImage = null;
+        GeneratedVideoUrl = null;
         CanSaveImage = false;
         _currentBase64Image = null;
         StatusMessage = string.Empty;
@@ -136,6 +168,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
         SelectedModel = AvailableModels.Count > 0 ? AvailableModels[0] : null;
     }
+
+    private bool IsVideoMode => SelectedMediaType == "Video";
 
     // ── Generate command ──────────────────────────────────────────────────────
 
@@ -164,10 +198,14 @@ public partial class MainWindowViewModel : ViewModelBase
         CanSaveImage = false;
         _currentBase64Image = null;
         GeneratedImage = null;
-        SetStatus("🔄 Verbinde mit OpenRouter API...", "#89B4FA");
+        GeneratedVideoUrl = null;
+
+        var modeLabel = IsVideoMode ? "Video" : "Bild";
+        SetStatus($"🔄 Verbinde mit OpenRouter API ({modeLabel}-Modus)...", "#89B4FA");
 
         try
         {
+            // Same endpoint and payload for both image and video models
             var requestBody = new
             {
                 model = SelectedModel,
@@ -184,7 +222,10 @@ public partial class MainWindowViewModel : ViewModelBase
             request.Headers.Add("X-Title", "Media Generator");
             request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            SetStatus($"⏳ Sende Anfrage an Modell '{SelectedModel}'...", "#89B4FA");
+            if (IsVideoMode)
+                SetStatus($"⏳ Video wird generiert mit '{SelectedModel}' – das kann mehrere Minuten dauern...", "#89B4FA");
+            else
+                SetStatus($"⏳ Sende Anfrage an Modell '{SelectedModel}'...", "#89B4FA");
 
             using var response = await _httpClient.SendAsync(request);
             var responseBody = await response.Content.ReadAsStringAsync();
@@ -197,6 +238,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
             using var doc = JsonDocument.Parse(responseBody);
             var root = doc.RootElement;
+
+            // Extract the message content
+            string? contentStr = null;
             string? base64Image = null;
 
             if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
@@ -204,7 +248,10 @@ public partial class MainWindowViewModel : ViewModelBase
                 var firstChoice = choices[0];
                 if (firstChoice.TryGetProperty("message", out var message))
                 {
-                    if (message.TryGetProperty("images", out var images) && images.GetArrayLength() > 0)
+                    // Image path: choices[0].message.images[0].image_url.url
+                    if (!IsVideoMode &&
+                        message.TryGetProperty("images", out var images) &&
+                        images.GetArrayLength() > 0)
                     {
                         var firstImage = images[0];
                         if (firstImage.TryGetProperty("image_url", out var imageUrl) &&
@@ -214,15 +261,39 @@ public partial class MainWindowViewModel : ViewModelBase
                         }
                     }
 
-                    if (base64Image == null && message.TryGetProperty("content", out var content))
+                    // Content field (used by video models and as image fallback)
+                    if (message.TryGetProperty("content", out var contentProp))
+                        contentStr = contentProp.GetString() ?? string.Empty;
+
+                    // Image fallback: data URI in content
+                    if (base64Image == null && !IsVideoMode &&
+                        contentStr?.StartsWith("data:image") == true)
                     {
-                        var contentStr = content.GetString() ?? string.Empty;
-                        if (contentStr.StartsWith("data:image"))
-                            base64Image = contentStr;
+                        base64Image = contentStr;
                     }
                 }
             }
 
+            // ── VIDEO path ────────────────────────────────────────────────────
+            if (IsVideoMode)
+            {
+                var videoUrl = ExtractVideoUrl(contentStr ?? string.Empty, responseBody);
+
+                if (string.IsNullOrEmpty(videoUrl))
+                {
+                    SetStatus(
+                        $"⚠️ Keine Video-URL in der Antwort gefunden.\n" +
+                        $"Antwort: {responseBody[..Math.Min(600, responseBody.Length)]}",
+                        "#FAB387");
+                    return;
+                }
+
+                GeneratedVideoUrl = videoUrl;
+                SetStatus($"✅ Video fertig! Klicke '▶ Video öffnen' um es im Browser anzusehen.", "#A6E3A1");
+                return;
+            }
+
+            // ── IMAGE path ────────────────────────────────────────────────────
             if (string.IsNullOrEmpty(base64Image))
             {
                 SetStatus(
@@ -246,8 +317,11 @@ public partial class MainWindowViewModel : ViewModelBase
 
             _currentBase64Image = base64Data;
             CanSaveImage = true;
-
             SetStatus("✅ Bild erfolgreich generiert! Klicke '💾 Bild speichern' zum Speichern.", "#A6E3A1");
+        }
+        catch (TaskCanceledException)
+        {
+            SetStatus("⏱️ Timeout: Die Anfrage hat zu lange gedauert. Bitte versuche es erneut.", "#F38BA8");
         }
         catch (HttpRequestException ex)
         {
@@ -260,6 +334,49 @@ public partial class MainWindowViewModel : ViewModelBase
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    // ── Video URL extraction ──────────────────────────────────────────────────
+
+    private static string? ExtractVideoUrl(string content, string fullResponseBody)
+    {
+        // 1. Try to find a video-specific URL in the content field
+        var match = VideoUrlRegex.Match(content);
+        if (match.Success) return match.Value;
+
+        // 2. Try any URL in the content field
+        match = AnyUrlRegex.Match(content);
+        if (match.Success) return match.Value;
+
+        // 3. Search the entire raw response body as fallback
+        match = VideoUrlRegex.Match(fullResponseBody);
+        if (match.Success) return match.Value;
+
+        match = AnyUrlRegex.Match(fullResponseBody);
+        if (match.Success) return match.Value;
+
+        return null;
+    }
+
+    // ── Open video in browser ─────────────────────────────────────────────────
+
+    [RelayCommand]
+    private void OpenVideoInBrowser()
+    {
+        if (string.IsNullOrEmpty(GeneratedVideoUrl)) return;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = GeneratedVideoUrl,
+                UseShellExecute = true   // lets the OS pick the default browser
+            });
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"❌ Browser konnte nicht geöffnet werden: {ex.Message}", "#F38BA8");
         }
     }
 

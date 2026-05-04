@@ -208,7 +208,7 @@
                           CornerRadius="8"/>
             </Grid>
 
-            <!-- Image / Result Area -->
+            <!-- Result Area -->
             <Border Grid.Row="3"
                     Background="#181825"
                     BorderBrush="#585B70"
@@ -218,19 +218,62 @@
                     ClipToBounds="True">
 
                 <Grid>
-                    <TextBlock Text="Das generierte Bild erscheint hier..."
-                               HorizontalAlignment="Center"
+                    <!-- Placeholder: nothing generated yet -->
+                    <TextBlock HorizontalAlignment="Center"
                                VerticalAlignment="Center"
                                Foreground="#585B70"
                                FontSize="16"
-                               IsVisible="{Binding GeneratedImage, Converter={x:Static ObjectConverters.IsNull}}"/>
+                               TextAlignment="Center">
+                        <TextBlock.IsVisible>
+                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                <Binding Path="GeneratedImage" Converter="{x:Static ObjectConverters.IsNull}"/>
+                                <Binding Path="HasVideoResult" Converter="{x:Static BoolConverters.Not}"/>
+                            </MultiBinding>
+                        </TextBlock.IsVisible>
+                        Das generierte Bild oder Video erscheint hier...
+                    </TextBlock>
 
+                    <!-- Generated Image (image mode) -->
                     <Image Source="{Binding GeneratedImage}"
                            Stretch="Uniform"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"
                            IsVisible="{Binding GeneratedImage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
 
+                    <!-- Video result panel -->
+                    <StackPanel HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="20"
+                                IsVisible="{Binding HasVideoResult}">
+
+                        <TextBlock Text="🎬 Video erfolgreich generiert!"
+                                   Foreground="#A6E3A1"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Text="{Binding GeneratedVideoUrl}"
+                                   Foreground="#89B4FA"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   HorizontalAlignment="Center"
+                                   MaxWidth="600"
+                                   TextAlignment="Center"/>
+
+                        <Button Content="▶ Video im Browser öffnen"
+                                Command="{Binding OpenVideoInBrowserCommand}"
+                                HorizontalAlignment="Center"
+                                Height="46"
+                                Padding="24,0"
+                                FontSize="15"
+                                FontWeight="SemiBold"
+                                Background="#CBA6F7"
+                                Foreground="#1E1E2E"
+                                CornerRadius="8"
+                                Cursor="Hand"/>
+                    </StackPanel>
+
+                    <!-- Loading Overlay -->
                     <Border Background="#AA181825"
                             IsVisible="{Binding IsLoading}"
                             CornerRadius="12">
@@ -242,7 +285,7 @@
                                        FontSize="20"
                                        FontWeight="SemiBold"
                                        HorizontalAlignment="Center"/>
-                            <TextBlock Text="Bitte warten, das kann einige Sekunden dauern."
+                            <TextBlock Text="Bitte warten, das kann mehrere Minuten dauern."
                                        Foreground="#A6ADC8"
                                        FontSize="13"
                                        HorizontalAlignment="Center"/>

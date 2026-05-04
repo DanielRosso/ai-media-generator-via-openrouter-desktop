@@ -50,14 +50,14 @@ Beim allerersten Start der App erscheint ein **Setup-Bildschirm**:
 ### Bild generieren
 
 1. Wähle **„Bild"** im Medientyp-Dropdown
-2. Wähle ein Modell (z. B. `black-forest-labs/flux-schnell`)
+2. Wähle ein Modell (z. B. `bblack-forest-labs/flux.2-pro`)
 3. Gib deinen Prompt ein und klicke **„✨ Generieren"**
 4. Das Bild erscheint direkt in der App – mit **„💾 Bild speichern"** auf die Festplatte speichern
 
 ### Video generieren
 
 1. Wähle **„Video"** im Medientyp-Dropdown
-2. Wähle ein Modell (z. B. `luma/ray-2-720p`)
+2. Wähle ein Modell (z. B. `bytedance/seedance-2.0`)
 3. Gib deinen Prompt ein und klicke **„✨ Generieren"**
 4. Die App startet den Job und pollt automatisch alle 5 Sekunden den Status
 5. Sobald das Video fertig ist, klicke **„⬇ Video herunterladen und speichern"** – der Media Player öffnet sich automatisch
@@ -83,15 +83,15 @@ dotnet publish vid-img-frontend-net-core.csproj -c Release -r win-x64 --self-con
 
 ## 🧩 Technologie-Stack
 
-| Komponente | Technologie |
-|---|---|
-| Sprache | C# / .NET 10 |
-| UI-Framework | Avalonia UI 12 |
-| MVVM | CommunityToolkit.Mvvm |
-| HTTP | System.Net.Http (HttpClient) |
-| JSON | System.Text.Json |
+| Komponente    | Technologie                             |
+| ------------- | --------------------------------------- |
+| Sprache       | C# / .NET 10                            |
+| UI-Framework  | Avalonia UI 12                          |
+| MVVM          | CommunityToolkit.Mvvm                   |
+| HTTP          | System.Net.Http (HttpClient)            |
+| JSON          | System.Text.Json                        |
 | Konfiguration | Microsoft.Extensions.Configuration.Json |
-| CI/CD | GitHub Actions |
+| CI/CD         | GitHub Actions                          |
 
 ---
 

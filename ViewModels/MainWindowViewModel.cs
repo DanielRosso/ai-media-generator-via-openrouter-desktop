@@ -108,6 +108,21 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private bool _canSaveImage = false;
 
+    // ── Debug log ─────────────────────────────────────────────────────────────
+
+    /// <summary>Full error protocol shown in the UI debug panel.</summary>
+    [ObservableProperty]
+    private string _debugLog = string.Empty;
+
+    /// <summary>True when a debug log entry is available to display.</summary>
+    public bool HasDebugLog => !string.IsNullOrEmpty(DebugLog);
+
+    partial void OnDebugLogChanged(string value)
+        => OnPropertyChanged(nameof(HasDebugLog));
+
+    [RelayCommand]
+    private void ClearDebugLog() => DebugLog = string.Empty;
+
     // ── Constructor ───────────────────────────────────────────────────────────
 
     public MainWindowViewModel()
@@ -199,9 +214,13 @@ public partial class MainWindowViewModel : ViewModelBase
         _currentBase64Image = null;
         GeneratedImage = null;
         GeneratedVideoUrl = null;
+        DebugLog = string.Empty;
 
         var modeLabel = IsVideoMode ? "Video" : "Bild";
         SetStatus($"🔄 Verbinde mit OpenRouter API ({modeLabel}-Modus)...", "#89B4FA");
+
+        // Capture the exact payload we send – used in the debug log on failure
+        string requestPayload = string.Empty;
 
         try
         {
@@ -215,12 +234,13 @@ public partial class MainWindowViewModel : ViewModelBase
                 }
             };
 
-            var json = JsonSerializer.Serialize(requestBody);
+            requestPayload = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions { WriteIndented = true });
+
             using var request = new HttpRequestMessage(HttpMethod.Post, ApiUrl);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
             request.Headers.Add("HTTP-Referer", "https://github.com/DanielRosso/ai-media-generator-via-openrouter-desktop");
             request.Headers.Add("X-Title", "Media Generator");
-            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            request.Content = new StringContent(requestPayload, Encoding.UTF8, "application/json");
 
             if (IsVideoMode)
                 SetStatus($"⏳ Video wird generiert mit '{SelectedModel}' – das kann mehrere Minuten dauern...", "#89B4FA");
@@ -232,7 +252,18 @@ public partial class MainWindowViewModel : ViewModelBase
 
             if (!response.IsSuccessStatusCode)
             {
-                SetStatus($"❌ API-Fehler {(int)response.StatusCode}: {response.ReasonPhrase}\n{responseBody}", "#F38BA8");
+                var statusCode = (int)response.StatusCode;
+                SetStatus($"❌ API-Fehler {statusCode}: {response.ReasonPhrase}", "#F38BA8");
+                DebugLog =
+                    $"═══ HTTP-FEHLERPROTOKOLL ═══\n" +
+                    $"Zeitstempel : {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+                    $"Endpunkt    : POST {ApiUrl}\n" +
+                    $"Modell      : {SelectedModel}\n" +
+                    $"Statuscode  : {statusCode} {response.ReasonPhrase}\n\n" +
+                    $"── Gesendeter Payload ──────────────────────────────────\n" +
+                    $"{requestPayload}\n\n" +
+                    $"── Antwort von OpenRouter ──────────────────────────────\n" +
+                    $"{responseBody}";
                 return;
             }
 

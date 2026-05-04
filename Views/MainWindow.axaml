@@ -94,7 +94,7 @@
         <!-- ══════════════════════════════════════════════════════════════════
              MAIN UI – shown once the API key is configured
              ══════════════════════════════════════════════════════════════════ -->
-        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto"
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto"
               Margin="24"
               IsVisible="{Binding IsApiKeyConfigured}">
 
@@ -299,11 +299,61 @@
                     Background="#313244"
                     CornerRadius="8"
                     Padding="12,8"
+                    Margin="0,0,0,8"
                     IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                 <TextBlock Text="{Binding StatusMessage}"
                            Foreground="{Binding StatusColor}"
                            FontSize="13"
                            TextWrapping="Wrap"/>
+            </Border>
+
+            <!-- Debug Log Panel – visible only on API errors -->
+            <Border Grid.Row="5"
+                    Background="#2D1B1B"
+                    BorderBrush="#F38BA8"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="0"
+                    MaxHeight="220"
+                    IsVisible="{Binding HasDebugLog}">
+                <Grid RowDefinitions="Auto,*">
+
+                    <!-- Header row -->
+                    <Grid Grid.Row="0"
+                          ColumnDefinitions="*,Auto"
+                          Background="#3D1F1F"
+                          Margin="0">
+                        <TextBlock Grid.Column="0"
+                                   Text="🐛 Debug-Protokoll"
+                                   Foreground="#F38BA8"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Margin="12,6"/>
+                        <Button Grid.Column="1"
+                                Content="✕ Schließen"
+                                Command="{Binding ClearDebugLogCommand}"
+                                Height="28"
+                                Padding="10,0"
+                                FontSize="11"
+                                Background="Transparent"
+                                Foreground="#F38BA8"
+                                BorderThickness="0"
+                                Margin="4"
+                                Cursor="Hand"/>
+                    </Grid>
+
+                    <!-- Scrollable log content -->
+                    <ScrollViewer Grid.Row="1"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Auto">
+                        <TextBlock Text="{Binding DebugLog}"
+                                   Foreground="#FAB387"
+                                   FontFamily="Consolas,Courier New,monospace"
+                                   FontSize="11"
+                                   TextWrapping="NoWrap"
+                                   Margin="12,8"/>
+                    </ScrollViewer>
+                </Grid>
             </Border>
 
         </Grid>

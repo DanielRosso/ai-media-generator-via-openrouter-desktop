@@ -11,8 +11,8 @@
 
 ## ✨ Features
 
-- 🖼️ **KI-Bildgenerierung** – Nutze Modelle wie `flux-schnell` oder `flux-1.1-pro-ultra` direkt aus der App
-- 🎥 **KI-Videogenerierung** – Unterstützt Video-Modelle wie `luma/ray-2-720p` und `kwaivgi/kling-v3.0-pro` mit integriertem Polling-Mechanismus für lange Generierungs-Jobs
+- 🖼️ **KI-Bildgenerierung** – Nutze Modelle wie `flux 2 Pro` oder `Seedream 4.5` direkt aus der App
+- 🎥 **KI-Videogenerierung** – Unterstützt Video-Modelle wie `Seedance 2.0` und `kling 3.0 Std` mit integriertem Polling-Mechanismus für lange Generierungs-Jobs
 - 🔄 **Dynamische Modellauswahl** – Wechsle zwischen Bild- und Video-Modus; die Modell-Liste aktualisiert sich automatisch
 - ⬇️ **Direkter Download** – Bilder und Videos werden direkt auf deine Festplatte gespeichert (kein Browser-Umweg)
 - 🔑 **Sichere API-Key-Verwaltung** – Der OpenRouter API-Key wird ausschließlich lokal in deinem `AppData`-Verzeichnis gespeichert – keine `.env`-Dateien, kein Risiko versehentlicher Git-Commits

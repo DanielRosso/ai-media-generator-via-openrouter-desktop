@@ -6,7 +6,7 @@
         mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
         x:Class="vid_img_frontend_net_core.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="avares://vid-img-frontend-net-core/Assets/favicon.ico"
         Title="Media Generator"
         MinWidth="700"
         MinHeight="580"

@@ -9,14 +9,14 @@
         Icon="/Assets/avalonia-logo.ico"
         Title="Media Generator"
         MinWidth="700"
-        MinHeight="550"
+        MinHeight="580"
         Background="#1E1E2E">
 
     <Design.DataContext>
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="24">
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="24">
 
         <!-- Title -->
         <TextBlock Grid.Row="0"
@@ -26,8 +26,8 @@
                    Foreground="#CDD6F4"
                    Margin="0,0,0,20"/>
 
-        <!-- Controls Row -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,16">
+        <!-- Row 1: Prompt TextBox + Media-Type ComboBox + Generate Button -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,10">
 
             <!-- Prompt TextBox -->
             <TextBox Grid.Column="0"
@@ -49,7 +49,8 @@
 
             <!-- Media Type ComboBox -->
             <ComboBox Grid.Column="1"
-                      SelectedIndex="{Binding SelectedMediaTypeIndex}"
+                      ItemsSource="{Binding MediaTypes}"
+                      SelectedItem="{Binding SelectedMediaType}"
                       Width="120"
                       Height="42"
                       VerticalAlignment="Top"
@@ -58,10 +59,7 @@
                       BorderBrush="#585B70"
                       BorderThickness="1"
                       CornerRadius="8"
-                      Margin="0,0,12,0">
-                <ComboBoxItem Content="Bild"/>
-                <ComboBoxItem Content="Video"/>
-            </ComboBox>
+                      Margin="0,0,12,0"/>
 
             <!-- Generate Button -->
             <Button Grid.Column="2"
@@ -79,8 +77,28 @@
                     Cursor="Hand"/>
         </Grid>
 
+        <!-- Row 2: Model Selection ComboBox -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,0,0,16">
+            <TextBlock Grid.Column="0"
+                       Text="Modell:"
+                       Foreground="#A6ADC8"
+                       FontSize="13"
+                       VerticalAlignment="Center"
+                       Margin="0,0,10,0"/>
+            <ComboBox Grid.Column="1"
+                      ItemsSource="{Binding AvailableModels}"
+                      SelectedItem="{Binding SelectedModel}"
+                      HorizontalAlignment="Stretch"
+                      Height="38"
+                      Background="#313244"
+                      Foreground="#CDD6F4"
+                      BorderBrush="#585B70"
+                      BorderThickness="1"
+                      CornerRadius="8"/>
+        </Grid>
+
         <!-- Image / Result Area -->
-        <Border Grid.Row="2"
+        <Border Grid.Row="3"
                 Background="#181825"
                 BorderBrush="#585B70"
                 BorderThickness="1"
@@ -126,7 +144,7 @@
         </Border>
 
         <!-- Status Bar -->
-        <Border Grid.Row="3"
+        <Border Grid.Row="4"
                 Background="#313244"
                 CornerRadius="8"
                 Padding="12,8"

@@ -26,8 +26,8 @@
                    Foreground="#CDD6F4"
                    Margin="0,0,0,20"/>
 
-        <!-- Row 1: Prompt TextBox + Media-Type ComboBox + Generate Button -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,10">
+        <!-- Row 1: Prompt TextBox + Media-Type ComboBox + Buttons -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,10">
 
             <!-- Prompt TextBox -->
             <TextBox Grid.Column="0"
@@ -74,7 +74,24 @@
                     Background="#89B4FA"
                     Foreground="#1E1E2E"
                     CornerRadius="8"
-                    Cursor="Hand"/>
+                    Cursor="Hand"
+                    Margin="0,0,12,0"/>
+
+            <!-- Save Button -->
+            <Button x:Name="SaveButton"
+                    Grid.Column="3"
+                    Content="💾 Bild speichern"
+                    IsEnabled="{Binding CanSaveImage}"
+                    Width="150"
+                    Height="42"
+                    VerticalAlignment="Top"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    Background="#A6E3A1"
+                    Foreground="#1E1E2E"
+                    CornerRadius="8"
+                    Cursor="Hand"
+                    Click="SaveButton_Click"/>
         </Grid>
 
         <!-- Row 2: Model Selection ComboBox -->

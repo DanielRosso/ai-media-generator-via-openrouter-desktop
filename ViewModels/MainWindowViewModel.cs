@@ -59,6 +59,13 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private string _statusColor = "#A6ADC8";
 
+    /// <summary>Raw Base64 string of the last successfully generated image.</summary>
+    private string? _currentBase64Image;
+
+    /// <summary>True once a valid image has been generated – enables the Save button.</summary>
+    [ObservableProperty]
+    private bool _canSaveImage = false;
+
     // ── Constructor ───────────────────────────────────────────────────────────
 
     public MainWindowViewModel()
@@ -127,6 +134,8 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         IsLoading = true;
+        CanSaveImage = false;
+        _currentBase64Image = null;
         GeneratedImage = null;
         SetStatus("🔄 Verbinde mit OpenRouter API...", "#89B4FA");
 
@@ -214,7 +223,11 @@ public partial class MainWindowViewModel : ViewModelBase
                 GeneratedImage = new Bitmap(stream);
             });
 
-            SetStatus("✅ Bild erfolgreich generiert!", "#A6E3A1");
+            // Store the clean Base64 data so the Save command can write it to disk
+            _currentBase64Image = base64Data;
+            CanSaveImage = true;
+
+            SetStatus("✅ Bild erfolgreich generiert! Klicke '💾 Bild speichern' zum Speichern.", "#A6E3A1");
         }
         catch (InvalidOperationException ex)
         {
@@ -233,6 +246,22 @@ public partial class MainWindowViewModel : ViewModelBase
             IsLoading = false;
         }
     }
+
+    // ── Save command (called from code-behind with StorageProvider) ────────────
+
+    /// <summary>
+    /// Exposes the current Base64 image data to the View's code-behind,
+    /// which handles the platform StorageProvider dialog.
+    /// </summary>
+    public string? GetCurrentBase64Image() => _currentBase64Image;
+
+    /// <summary>Called by the View after a successful save to update the status bar.</summary>
+    public void NotifySaved(string filePath)
+        => SetStatus($"💾 Gespeichert: {filePath}", "#A6E3A1");
+
+    /// <summary>Called by the View if the save dialog was cancelled or failed.</summary>
+    public void NotifySaveFailed(string reason)
+        => SetStatus($"❌ Speichern fehlgeschlagen: {reason}", "#F38BA8");
 
     private void SetStatus(string message, string color)
     {

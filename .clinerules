@@ -1,0 +1,21 @@
+# 🎮 Projekt-Kontext
+- **Engine:** Avalonia UI
+- **Programmiersprache:** C#
+- **Spieltyp:** Bild- und Videogenerierungs-Tool
+- **Kernmechanik:** API-Integration mit KI-Diensten (Stable Diffusion/RunwayML)
+
+# 📂 Ordnerstruktur & Architektur
+- Skripte liegen im Ordner: Models/, Services/, ViewModels/ (C#-Code ist nach MVVM-Architektur organisiert)
+- UI-Komponenten liegen im Ordner: Views/
+- MVVM-Architektur: Models für Daten, ViewModels für Logik, Views für UI
+- Services enthalten Geschäftslogik und API-Integrationen
+
+# 💻 Code-Konventionen
+- **Naming:** Private Felder in `_camelCase`, Klassen/Nodes in `PascalCase`, öffentliche Properties in `PascalCase`, Konstanten in `PascalCase` (public) oder `camelCase` (private).
+- **Kommentare:** Technische Kommentare auf Englisch, UI-Nachrichten und Benutzerhinweise auf Deutsch.
+- **Sauberkeit:** Halte Funktionen kurz. Keine "Magic Numbers" im Code. Verwende `var` für lokale Variablendeklarationen.
+
+# 🤖 Verhaltensregeln für Roo Code (WICHTIG)
+- **Fokus:** Ändere NIEMALS Code-Zeilen oder Dateien, die nicht absolut notwendig für die aktuelle Aufgabe sind.
+- **Sicherheit:** Lösche keine bestehenden Kommentare, es sei denn, die zugehörige Funktion wird komplett entfernt.
+- **Terminal:** Führe Terminal-Befehle nur aus, wenn ich dich explizit dazu auffordere.

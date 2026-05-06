@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -13,6 +14,68 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+    }
+
+    // ── Reference image upload (video mode) ─────────────────────────────────
+
+    private async void UploadReferenceImageButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+
+        try
+        {
+            var topLevel = TopLevel.GetTopLevel(this)
+                ?? throw new InvalidOperationException("TopLevel konnte nicht ermittelt werden.");
+
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Referenzbild auswählen",
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("Bilddateien")
+                    {
+                        Patterns = ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif"]
+                    }
+                ]
+            });
+
+            var file = files.FirstOrDefault();
+            if (file is null) return;
+
+            await using var fileStream = await file.OpenReadAsync();
+            using var memoryStream = new MemoryStream();
+            await fileStream.CopyToAsync(memoryStream);
+
+            var bytes = memoryStream.ToArray();
+            var base64 = Convert.ToBase64String(bytes);
+            var mimeType = GetImageMimeType(file.Name);
+            var dataUrl = $"data:{mimeType};base64,{base64}";
+
+            vm.SetReferenceImage(file.Name, dataUrl);
+        }
+        catch (Exception ex)
+        {
+            vm.NotifyVideoDownloadFailed($"Referenzbild konnte nicht geladen werden: {ex.Message}");
+        }
+    }
+
+    private void ClearReferenceImageButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        vm.ClearReferenceImage();
+    }
+
+    private static string GetImageMimeType(string fileName)
+    {
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        return ext switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".webp" => "image/webp",
+            ".gif" => "image/gif",
+            _ => "image/png"
+        };
     }
 
     // ── Save image ────────────────────────────────────────────────────────────

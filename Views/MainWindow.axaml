@@ -94,7 +94,7 @@
         <!-- ══════════════════════════════════════════════════════════════════
              MAIN UI – shown once the API key is configured
              ══════════════════════════════════════════════════════════════════ -->
-        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto"
+          <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto"
               Margin="24"
               IsVisible="{Binding IsApiKeyConfigured}">
 
@@ -208,8 +208,65 @@
                           CornerRadius="8"/>
             </Grid>
 
-            <!-- Result Area -->
+            <!-- Row 3: Reference image upload (video mode only) -->
             <Border Grid.Row="3"
+                    Background="#313244"
+                    CornerRadius="8"
+                    Padding="10"
+                    Margin="0,0,0,16"
+                    IsVisible="{Binding IsVideoMode}">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                    <TextBlock Grid.Column="0"
+                               Text="Referenzbild:"
+                               Foreground="#A6ADC8"
+                               FontSize="13"
+                               VerticalAlignment="Center"/>
+
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding ReferenceImageName}"
+                               Foreground="#CDD6F4"
+                               FontSize="13"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis">
+                        <TextBlock.IsVisible>
+                            <Binding Path="HasReferenceImage"/>
+                        </TextBlock.IsVisible>
+                    </TextBlock>
+
+                    <TextBlock Grid.Column="1"
+                               Text="Kein Bild ausgewählt"
+                               Foreground="#7F849C"
+                               FontSize="13"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding HasReferenceImage, Converter={x:Static BoolConverters.Not}}"/>
+
+                    <Button Grid.Column="2"
+                            Content="🖼 Bild hochladen"
+                            Height="34"
+                            Padding="12,0"
+                            FontSize="12"
+                            Background="#89B4FA"
+                            Foreground="#1E1E2E"
+                            CornerRadius="6"
+                            Cursor="Hand"
+                            Click="UploadReferenceImageButton_Click"/>
+
+                    <Button Grid.Column="3"
+                            Content="✖ Entfernen"
+                            Height="34"
+                            Padding="12,0"
+                            FontSize="12"
+                            Background="#45475A"
+                            Foreground="#CDD6F4"
+                            CornerRadius="6"
+                            Cursor="Hand"
+                            IsEnabled="{Binding HasReferenceImage}"
+                            Click="ClearReferenceImageButton_Click"/>
+                </Grid>
+            </Border>
+
+            <!-- Result Area -->
+            <Border Grid.Row="4"
                     Background="#181825"
                     BorderBrush="#585B70"
                     BorderThickness="1"
@@ -295,7 +352,7 @@
             </Border>
 
             <!-- Status Bar -->
-            <Border Grid.Row="4"
+                <Border Grid.Row="5"
                     Background="#313244"
                     CornerRadius="8"
                     Padding="12,8"
@@ -308,7 +365,7 @@
             </Border>
 
             <!-- Debug Log Panel – visible only on API errors -->
-            <Border Grid.Row="5"
+                <Border Grid.Row="6"
                     Background="#2D1B1B"
                     BorderBrush="#F38BA8"
                     BorderThickness="1"

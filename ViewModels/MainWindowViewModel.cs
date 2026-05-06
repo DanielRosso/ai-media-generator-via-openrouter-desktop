@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -61,6 +62,14 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnSelectedMediaTypeChanged(string value)
     {
         RefreshModelList();
+        OnPropertyChanged(nameof(IsVideoMode));
+
+        if (!IsVideoMode)
+        {
+            ReferenceImageDataUrl = null;
+            ReferenceImageName = string.Empty;
+        }
+
         // Clear previous result when switching type
         GeneratedImage = null;
         GeneratedVideoUrl = null;
@@ -108,6 +117,19 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _canSaveImage = false;
+
+    // ── Video reference image ────────────────────────────────────────────────
+
+    [ObservableProperty]
+    private string? _referenceImageDataUrl;
+
+    [ObservableProperty]
+    private string _referenceImageName = string.Empty;
+
+    public bool HasReferenceImage => !string.IsNullOrWhiteSpace(ReferenceImageDataUrl);
+
+    partial void OnReferenceImageDataUrlChanged(string? value)
+        => OnPropertyChanged(nameof(HasReferenceImage));
 
     // ── Debug log ─────────────────────────────────────────────────────────────
 
@@ -185,7 +207,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedModel = AvailableModels.Count > 0 ? AvailableModels[0] : null;
     }
 
-    private bool IsVideoMode => SelectedMediaType == "Video";
+    public bool IsVideoMode => SelectedMediaType == "Video";
 
     // ── Generate command ──────────────────────────────────────────────────────
 
@@ -254,7 +276,27 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task GenerateVideoAsync(string model, string prompt, string apiKey)
     {
         // ── Step 1: Start the job ─────────────────────────────────────────────
-        var startBody = new { model, prompt };
+        var startBody = new Dictionary<string, object?>
+        {
+            ["model"] = model,
+            ["prompt"] = prompt
+        };
+
+        if (!string.IsNullOrWhiteSpace(ReferenceImageDataUrl))
+        {
+            startBody["input_references"] = new object[]
+            {
+                new
+                {
+                    type = "image_url",
+                    image_url = new
+                    {
+                        url = ReferenceImageDataUrl
+                    }
+                }
+            };
+        }
+
         var startPayload = JsonSerializer.Serialize(startBody, new JsonSerializerOptions { WriteIndented = true });
 
         using var startRequest = new HttpRequestMessage(HttpMethod.Post, VideoApiUrl);
@@ -526,6 +568,20 @@ public partial class MainWindowViewModel : ViewModelBase
     // ── Save helpers (called from code-behind) ────────────────────────────────
 
     public string? GetCurrentBase64Image() => _currentBase64Image;
+
+    public void SetReferenceImage(string fileName, string dataUrl)
+    {
+        ReferenceImageName = fileName;
+        ReferenceImageDataUrl = dataUrl;
+        SetStatus($"🖼️ Referenzbild gesetzt: {fileName}", "#A6E3A1");
+    }
+
+    public void ClearReferenceImage()
+    {
+        ReferenceImageName = string.Empty;
+        ReferenceImageDataUrl = null;
+        SetStatus("🧹 Referenzbild entfernt.", "#A6ADC8");
+    }
 
     public void NotifySaved(string filePath)
         => SetStatus($"💾 Gespeichert: {filePath}", "#A6E3A1");

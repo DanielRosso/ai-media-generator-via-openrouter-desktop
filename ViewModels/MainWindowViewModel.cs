@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -276,9 +277,15 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task GenerateVideoAsync(string model, string prompt, string apiKey)
     {
         // ── Step 1: Start the job ─────────────────────────────────────────────
+        // Build models array: selected first, then all others as fallback
+        var allModels = ModelConfig.VideoModels;
+        var modelsList = new List<string> { model };
+        modelsList.AddRange(allModels.Where(m => m != model));
+
         var startBody = new Dictionary<string, object?>
         {
             ["model"] = model,
+            ["models"] = modelsList,
             ["prompt"] = prompt
         };
 
@@ -436,9 +443,16 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task GenerateImageAsync(string model, string prompt, string apiKey)
     {
+
+        // Build models array: selected first, then all others as fallback
+        var allModels = ModelConfig.ImageModels;
+        var modelsList = new List<string> { model };
+        modelsList.AddRange(allModels.Where(m => m != model));
+
         var requestBody = new
         {
             model,
+            models = modelsList,
             messages = new[] { new { role = "user", content = prompt } }
         };
 

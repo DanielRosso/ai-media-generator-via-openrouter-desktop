@@ -1,6 +1,6 @@
 <div align="center">
   <h1>🖥️ AI Media Orchestrator (Desktop Native)</h1>
-  <p>A cross-platform native client for AI media generation, built with C# .NET 10 and Avalonia UI.</p>
+  <p>Ein nativer Cross-Platform-Client für die Generierung von KI-Medien, entwickelt mit C# .NET 10 und Avalonia UI.</p>
 
   <p>
     <img src="https://img.shields.io/badge/.NET-10.0-5C2D91.svg?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 10" />
@@ -12,23 +12,23 @@
 
 ---
 
-## 📌 Executive Summary
+## 📌 Projektübersicht
 
-While web interfaces are great, heavy media generation workflows often benefit from native desktop integration: direct disk I/O, local credential storage, and no browser-based timeout limitations. 
+Während Weboberflächen großartig sind, profitieren rechenintensive Medien-Workflows oft von einer nativen Desktop-Integration: direkte Dateisystemzugriffe, lokale Speicherung von Zugangsdaten und keine browserbasierten Timeout-Beschränkungen. 
 
-This C# application leverages **Avalonia UI** to provide a seamless, performant, native experience for interacting with the OpenRouter API. It demonstrates advanced asynchronous programming in .NET and robust state management for long-running AI tasks.
+Diese C#-Anwendung nutzt **Avalonia UI**, um eine nahtlose, performante und native Erfahrung für die Interaktion mit der OpenRouter API zu bieten. Sie demonstriert fortgeschrittene asynchrone Programmierung in .NET und robustes State Management für lang laufende KI-Aufgaben.
 
-## 🏗️ Architecture & Technical Highlights
+## 🏗️ Architektur & Technische Highlights
 
-This project was built with a strong focus on enterprise-grade patterns and clean code principles:
+Dieses Projekt wurde mit einem starken Fokus auf Enterprise-Muster und Clean-Code-Prinzipien entwickelt:
 
-- **🔄 Asynchronous Polling Engine:** AI Video generation via LLMs (like Kling or Seedance) takes time. The app implements a robust, non-blocking `async/await` polling mechanism to check job statuses without freezing the UI thread.
-- **🏛️ MVVM Architecture:** Built strictly on Model-View-ViewModel (MVVM) principles. This ensures a clear separation of concerns between business logic, API calls, and the Avalonia XAML frontend, making the codebase highly testable and maintainable.
-- **🔐 Secure Local Credential Management:** API keys are *never* hardcoded or required via `.env` files. They are managed securely within the user's local `AppData` directory, completely mitigating the risk of accidental Git commits.
-- **⚙️ CI/CD & Automation:** Integrated with **GitHub Actions**. Every push to the `main` branch triggers an automated build pipeline that compiles the application and generates the final Windows `.exe` artifact automatically.
-- **🗂️ Direct Disk I/O:** Bypasses browser download dialogs by streaming generated media directly to the local filesystem.
+- **🔄 Asynchrone Polling-Engine:** Die KI-Videogenerierung durch Modelle (wie Kling oder Seedance) braucht Zeit. Die App implementiert einen robusten, nicht-blockierenden `async/await` Polling-Mechanismus, um den Status der Jobs abzufragen, ohne den UI-Thread einzufrieren.
+- **🏛️ MVVM-Architektur:** Streng nach dem Model-View-ViewModel (MVVM) Prinzip aufgebaut. Dies sorgt für eine klare Trennung zwischen Geschäftslogik, API-Aufrufen und dem Avalonia XAML-Frontend, wodurch die Codebasis hochgradig testbar und wartbar wird.
+- **🔐 Sichere lokale Zugangsdatenverwaltung:** API-Keys sind *niemals* fest im Code hinterlegt oder werden über ungesicherte `.env`-Dateien gefordert. Sie werden sicher im lokalen `AppData`-Verzeichnis des Benutzers verwaltet, was das Risiko versehentlicher Git-Commits vollständig eliminiert.
+- **⚙️ CI/CD & Automatisierung:** Integriert mit **GitHub Actions**. Jeder Push in den `main`-Branch löst eine automatisierte Build-Pipeline aus, die die Anwendung kompiliert und automatisch die fertige Windows `.exe`-Datei erstellt.
+- **🗂️ Direkter Dateisystemzugriff (Disk I/O):** Umgeht Browser-Download-Dialoge, indem generierte Medien direkt und nahtlos auf der lokalen Festplatte gespeichert werden.
 
-## 📥 Download (Pre-Compiled)
+## 📥 Download (Vorkompiliert)
 
 **Du musst den Code nicht selbst kompilieren!**
 Dank der CI/CD Pipeline steht eine vollautomatisch gebaute `.exe`-Datei (Windows x64) bereit.
